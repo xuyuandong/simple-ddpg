@@ -21,12 +21,13 @@ class ActorCriticNetwork:
 		# create eval network
 		self.state_input, self.state_embedding,\
                         self.action, self.actor_net,\
-                        self.q_value, self.critic_net = self.create_eval_network(state_space, action_dim)
+                        self.action_input, self.q_value, self.critic_net \
+                        = self.create_eval_network(state_space, action_dim)
 
 		# create target network
 		self.target_state_input,self.target_state_embedding,self.target_state_update,\
                         self.target_action,self.target_actor_net,self.target_actor_update,\
-                        self.target_q_value,self.target_critic_net,self.target_critic_update \
+                        self.target_action_input, self.target_q_value,self.target_critic_net,self.target_critic_update \
                         = self.create_target_network(state_space, self.state_embedding, self.actor_net, self.critic_net)
 
 		# define training rules
@@ -43,7 +44,7 @@ class ActorCriticNetwork:
 		weight_decay = tf.add_n([L2 * tf.nn.l2_loss(var) for var in net])
 		self.cost = tf.reduce_mean(tf.square(self.q_input - self.q_value)) + weight_decay
 		self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(self.cost)
-		self.action_gradients = tf.gradients(ys=self.q_value, xs=self.action)
+		self.action_gradients = tf.gradients(ys=self.q_value, xs=self.action_input)
 
 	def create_training_actor_method(self, net):
                 ''' for eval network '''
@@ -54,14 +55,15 @@ class ActorCriticNetwork:
 	def create_eval_network(self, state_space, action_dim):
                 state_dim = 32
                 state_input = tf.sparse_placeholder(tf.float32, shape=[None, state_space])  # None * state_space
+		action_input = tf.placeholder("float",[None,action_dim])
                 
                 state_embedding = tf.Variable(tf.random_normal([state_space, state_dim], 0.0, 0.01), name='state_embedding')  
                 state_embed_input = tf.sparse_tensor_dense_matmul(state_input, state_embedding)
                 state_embed_input = tf.reduce_mean(state_embed_input, axis=1)
 
                 action, actor_net = self.create_eval_actor_network(state_embed_input, state_dim, action_dim)
-                q_value, critic_net = self.create_eval_critic_network(state_embed_input, action, state_dim, action_dim)
-                return state_input, state_embedding, action, actor_net, q_value, critic_net
+                q_value, critic_net = self.create_eval_critic_network(state_embed_input, action_input, state_dim, action_dim)
+                return state_input, state_embedding, action, actor_net, action_input, q_value, critic_net
 
         def create_eval_actor_network(self, state_embed_input, state_dim, action_dim):
 		layer1_size = LAYER1_SIZE
@@ -99,6 +101,7 @@ class ActorCriticNetwork:
 
 	def create_target_network(self, state_space, state_embedding, actor_net, critic_net):
                 state_input = tf.sparse_placeholder(tf.float32, shape=[None, state_space])  # None * state_space
+		action_input = tf.placeholder("float",[None,action_dim])
                 ema = tf.train.ExponentialMovingAverage(decay=1-TAU)
 		
                 # state embedding
@@ -116,11 +119,11 @@ class ActorCriticNetwork:
                 # critic net
                 target_critic_update = ema.apply(critic_net)
                 target_critic_net = [ema.average(x) for x in critic_net]
-                q_value = self.create_target_critic_network(state_embed_input, target_critic_net)
+                q_value = self.create_target_critic_network(state_embed_input, action_input, target_critic_net)
 
 		return state_input,target_state_embedding,state_embedding_update,\
                         action,target_actor_net, target_actor_update,\
-                        q_value, target_critic_net, target_critic_update
+                        action_input, q_value, target_critic_net, target_critic_update
 
         def create_target_actor_network(self, state_embed_input, target_net):
                 layer1 = tf.nn.relu(tf.matmul(state_embed_input,target_net[0]) + target_net[1])
@@ -138,12 +141,39 @@ class ActorCriticNetwork:
 	def update_target(self):
 		self.sess.run([self.target_state_update, self.target_actor_update, self.target_critic_update])
 
-	def train(self,q_gradient_batch,state_batch):
+	def train_critic(self,y_batch,state_batch,action_batch):
+		self.time_step += 1
+		self.sess.run(self.optimizer,feed_dict={
+			self.y_input:y_batch,
+			self.state_input:state_batch,
+			self.action_input:action_batch
+			})
+
+	def train_actor(self,q_gradient_batch,state_batch):
 		self.sess.run(self.optimizer,feed_dict={
 			self.q_gradient_input:q_gradient_batch,
 			self.state_input:state_batch
 			})
 
+        ''' critic net '''
+	def gradients(self,state_batch,action_batch):
+		return self.sess.run(self.action_gradients,feed_dict={
+			self.state_input:state_batch,
+			self.action_input:action_batch
+			})[0]
+	
+        def target_q(self,state_batch,action_batch):
+		return self.sess.run(self.target_q_value_output,feed_dict={
+			self.target_state_input:state_batch,
+			self.target_action_input:action_batch
+			})
+
+	def q_value(self,state_batch,action_batch):
+		return self.sess.run(self.q_value_output,feed_dict={
+			self.state_input:state_batch,
+			self.action_input:action_batch})
+
+        ''' actor net '''
 	def actions(self,state_batch):
 		return self.sess.run(self.action_output,feed_dict={
 			self.state_input:state_batch
