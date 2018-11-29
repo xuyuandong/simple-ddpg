@@ -69,11 +69,12 @@ class DDPG:
 
         # a = pi(s)
         action_batch_for_gradients = self.ac_network.actions(state_batch)
-        # ga from gmaxQ(s,a) 
+        # ga from maxQ(s,a), -ga for maxmizing maxQ(s,a)
         q_gradient_batch = self.ac_network.gradients(state_batch,action_batch_for_gradients)
         
         # Update eval actor policy using the sampled gradient:
         self.ac_network.train_actor(q_gradient_batch,state_batch)
+        #TODO: no sampling?
 
         # Update the target networks
         self.ac_network.update_target()
