@@ -163,30 +163,30 @@ class ActorCriticNetwork:
 			})[0]
 	
         def target_q(self,state_batch,action_batch):
-		return self.sess.run(self.target_q_value_output,feed_dict={
+		return self.sess.run(self.target_q_value,feed_dict={
 			self.target_state_input:state_batch,
 			self.target_action_input:action_batch
 			})
 
 	def q_value(self,state_batch,action_batch):
-		return self.sess.run(self.q_value_output,feed_dict={
+		return self.sess.run(self.q_value,feed_dict={
 			self.state_input:state_batch,
 			self.action_input:action_batch})
 
         ''' actor net '''
 	def actions(self,state_batch):
-		return self.sess.run(self.action_output,feed_dict={
+		return self.sess.run(self.action,feed_dict={
 			self.state_input:state_batch
 			})
 
 	def action(self,state):
-		return self.sess.run(self.action_output,feed_dict={
+		return self.sess.run(self.action,feed_dict={
 			self.state_input:[state]
 			})[0]
 
 
 	def target_actions(self,state_batch):
-		return self.sess.run(self.target_action_output,feed_dict={
+		return self.sess.run(self.target_action,feed_dict={
 			self.target_state_input:state_batch
 			})
 

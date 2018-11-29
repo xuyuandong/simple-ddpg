@@ -1,14 +1,11 @@
 # -----------------------------------
 # Deep Deterministic Policy Gradient
-# Author: Flood Sung
-# Date: 2016.5.4
 # -----------------------------------
 import gym
 import tensorflow as tf
 import numpy as np
 from ou_noise import OUNoise
-from critic_network import CriticNetwork 
-from actor_network_bn import ActorNetwork
+from actor_critic_network import ActorCriticNetwork
 from replay_buffer import ReplayBuffer
 
 # Hyper Parameters:
@@ -16,7 +13,7 @@ from replay_buffer import ReplayBuffer
 REPLAY_BUFFER_SIZE = 1000000
 REPLAY_START_SIZE = 10000
 BATCH_SIZE = 64
-GAMMA = 0.99
+GAMMA = 0.9
 
 
 class DDPG:
@@ -32,8 +29,7 @@ class DDPG:
 
         self.sess = tf.InteractiveSession()  #TODO
 
-        self.actor_network = ActorNetwork(self.sess,self.state_dim,self.action_dim)
-        self.critic_network = CriticNetwork(self.sess,self.state_dim,self.action_dim)
+        self.ac_network = ActorCriticNetwork(self.sess,self.state_space,self.action_dim)
         
         # initialize replay buffer
         self.replay_buffer = ReplayBuffer(REPLAY_BUFFER_SIZE)
@@ -53,10 +49,13 @@ class DDPG:
         # for action_dim = 1
         action_batch = np.resize(action_batch,[BATCH_SIZE,self.action_dim])
 
-        # Calculate y_batch
-        next_action_batch = self.actor_network.target_actions(next_state_batch)
-        q_value_batch = self.critic_network.target_q(next_state_batch,next_action_batch)
+        # Run policy by target actor network
+        # a' = pi(s')
+        next_action_batch = self.ac_network.target_actions(next_state_batch)
+        # maxQ(s',a')
+        q_value_batch = self.ac_network.target_q(next_state_batch,next_action_batch)
 
+        # Calculate target maxQ(s,a): y = reward + GAMMA * maxQ(s',a')
         y_batch = []  
         for i in range(len(minibatch)): 
             if done_batch[i]:
@@ -65,26 +64,28 @@ class DDPG:
                 y_batch.append(reward_batch[i] + GAMMA * q_value_batch[i])
         y_batch = np.resize(y_batch,[BATCH_SIZE,1])
         
-        # Update critic by minimizing the loss L
-        self.critic_network.train(y_batch,state_batch,action_batch)
+        # Update eval critic network by minimizing the loss L
+        self.ac_network.train_critic(y_batch,state_batch,action_batch)
 
-        # Update the actor policy using the sampled gradient:
-        action_batch_for_gradients = self.actor_network.actions(state_batch)
-        q_gradient_batch = self.critic_network.gradients(state_batch,action_batch_for_gradients)
-
-        self.actor_network.train(q_gradient_batch,state_batch)
+        # a = pi(s)
+        action_batch_for_gradients = self.ac_network.actions(state_batch)
+        # ga from gmaxQ(s,a) 
+        q_gradient_batch = self.ac_network.gradients(state_batch,action_batch_for_gradients)
+        
+        # Update eval actor policy using the sampled gradient:
+        self.ac_network.train_actor(q_gradient_batch,state_batch)
 
         # Update the target networks
-        self.actor_network.update_target()
-        self.critic_network.update_target()
+        self.ac_network.update_target()
+        self.ac_network.update_target()
 
     def noise_action(self,state):
         # Select action a_t according to the current policy and exploration noise
-        action = self.actor_network.action(state)
+        action = self.ac_network.action(state)
         return action+self.exploration_noise.noise()
 
     def action(self,state):
-        action = self.actor_network.action(state)
+        action = self.ac_network.action(state)
         return action
 
     def perceive(self,state,action,reward,next_state,done):
