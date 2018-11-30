@@ -1,4 +1,5 @@
 import sys
+import random
 
 class Env(object):
     def __init__(self):
@@ -17,7 +18,13 @@ class Env(object):
 
     def step(self):
         '''return one sample'''
-        pass
+        dim = 4
+        state = [random.randint(0, self.state_space) for i in range(dim)] 
+        action = random.random() - 0.5
+        reward = random.random() - 0.5
+        next_state = [random.randint(0, self.state_space) for i in range(dim)]
+        done = random.randint(0,1)
+        return state, action, reward, next_state, done
 
     def rand(self):
         '''random select one recommendation sequence sample'''
@@ -26,3 +33,9 @@ class Env(object):
     def search(self, state, action):
         '''knn find the possible reward'''
         return 0.0
+
+
+if __name__ == '__main__':
+    e = Env()
+    for i in range(4):
+        print e.step()

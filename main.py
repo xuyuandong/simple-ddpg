@@ -15,7 +15,7 @@ def main():
         env.reset()
         # Train
         for step in xrange(env.timestep_limit):
-            state,action,next_state,reward,done = env.step()
+            state,action,reward,next_state,done = env.step()
             agent.perceive(state,action,reward,next_state,done)
             if done:
                 break

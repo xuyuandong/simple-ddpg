@@ -39,9 +39,11 @@ class DDPG:
         # Sample a random minibatch of N transitions from replay buffer
         minibatch = self.replay_buffer.get_batch(BATCH_SIZE)
         state_batch = np.asarray([data[0] for data in minibatch])
+        state_batch = self.sparse_tensor(state_batch, self.state_space)
         action_batch = np.asarray([data[1] for data in minibatch])
         reward_batch = np.asarray([data[2] for data in minibatch])
         next_state_batch = np.asarray([data[3] for data in minibatch])
+        next_state_batch = self.sparse_tensor(next_state_batch, self.state_space)
         done_batch = np.asarray([data[4] for data in minibatch])
 
         # for action_dim = 1
@@ -63,7 +65,8 @@ class DDPG:
         y_batch = np.resize(y_batch,[BATCH_SIZE,1])
         
         # Update eval critic network by minimizing the loss L
-        self.ac_network.train_critic(y_batch,state_batch,action_batch)
+        cost = self.ac_network.train_critic(y_batch,state_batch,action_batch)
+        print 'step_%d critic cost:'%self.ac_network.time_step, cost
 
         # a = pi(s)
         action_batch_for_gradients = self.ac_network.actions(state_batch)
@@ -103,6 +106,13 @@ class DDPG:
         if done:
             self.exploration_noise.reset()
 
+    def sparse_tensor(self, state_batch, state_space):
+        row = len(state_batch)
+        indices = []
+        for r in xrange(row):
+            indices += [(r, c) for c in state_batch[r]]
+        values = [1.0 for i in xrange(len(indices))]
+        return tf.SparseTensorValue(indices=indices, values=values, dense_shape=[row, state_space])
 
 
 

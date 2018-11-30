@@ -14,7 +14,7 @@ BATCH_SIZE = 64
 class ActorCriticNetwork:
 	"""docstring for ActorNetwork"""
 	def __init__(self,sess,state_space,action_dim):
-
+		self.time_step = 0
 		self.sess = sess
 		self.state_space = state_space
 		self.action_dim = action_dim
@@ -41,17 +41,17 @@ class ActorCriticNetwork:
 
 	def create_training_critic_method(self, net):
                 ''' for eval network '''
-		self.q_input = tf.placeholder("float",[None,1])
+		self.y_input = tf.placeholder("float",[None,1])
 		weight_decay = tf.add_n([L2 * tf.nn.l2_loss(var) for var in net])
-		self.cost = tf.reduce_mean(tf.square(self.q_input - self.q_value)) + weight_decay
-		self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(self.cost)
+		self.cost = tf.reduce_mean(tf.square(self.y_input - self.q_value)) + weight_decay
+		self.critic_optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(self.cost)
 		self.action_gradients = tf.gradients(ys=self.q_value, xs=self.action_input)
 
 	def create_training_actor_method(self, net):
                 ''' for eval network '''
 		self.q_gradient_input = tf.placeholder("float",[None,self.action_dim])
 		self.parameters_gradients = tf.gradients(ys=self.action, xs=net, grad_ys=-self.q_gradient_input)
-		self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).apply_gradients(zip(self.parameters_gradients, net))
+		self.actor_optimizer = tf.train.AdamOptimizer(LEARNING_RATE).apply_gradients(zip(self.parameters_gradients, net))
 
 	def create_eval_network(self, state_space, action_dim):
                 state_dim = 32
@@ -141,14 +141,15 @@ class ActorCriticNetwork:
 
 	def train_critic(self,y_batch,state_batch,action_batch):
 		self.time_step += 1
-		self.sess.run(self.optimizer,feed_dict={
+		cost,_ = self.sess.run([self.cost,self.critic_optimizer],feed_dict={
 			self.y_input:y_batch,
 			self.state_input:state_batch,
 			self.action_input:action_batch
 			})
+                return cost
 
 	def train_actor(self,q_gradient_batch,state_batch):
-		self.sess.run(self.optimizer,feed_dict={
+		self.sess.run(self.actor_optimizer,feed_dict={
 			self.q_gradient_input:q_gradient_batch,
 			self.state_input:state_batch
 			})
