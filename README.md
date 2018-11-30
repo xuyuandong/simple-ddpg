@@ -2,7 +2,7 @@
 
 Reimplementing DDPG from Continuous Control with Deep Reinforcement Learning based on Tensorflow
 
-[http://arxiv.org/abs/1509.02971](http://arxiv.org/abs/1509.02971)
+[https://arxiv.org/abs/1801.00209](https://arxiv.org/abs/1801.00209)
 
 
 
