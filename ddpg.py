@@ -1,7 +1,6 @@
 # -----------------------------------
 # Deep Deterministic Policy Gradient
 # -----------------------------------
-import gym
 import tensorflow as tf
 import numpy as np
 from ou_noise import OUNoise
@@ -18,16 +17,15 @@ GAMMA = 0.9
 
 class DDPG:
     """docstring for DDPG"""
-    def __init__(self, env):
+    def __init__(self, state_space, action_dim):
         self.name = 'DDPG' # name for uploading results
+        self.sess = tf.Session()  
 
         # Randomly initialize actor network and critic network
         # with both their target networks
-        self.environment = env
-        self.state_dim = env.observation_space.shape[0]  # after embedding 32
-        self.action_dim = env.action_space.shape[0]      # action_dim = 1
+        self.state_space = state_space
+        self.action_dim = action_dim # 1
 
-        self.sess = tf.InteractiveSession()  #TODO
 
         self.ac_network = ActorCriticNetwork(self.sess,self.state_space,self.action_dim)
         

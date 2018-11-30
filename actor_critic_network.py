@@ -8,6 +8,7 @@ LAYER1_SIZE = 128
 LAYER2_SIZE = 64
 LEARNING_RATE = 1e-4
 TAU = 0.001
+L2 = 0.01
 BATCH_SIZE = 64
 
 class ActorCriticNetwork:
@@ -28,7 +29,7 @@ class ActorCriticNetwork:
 		self.target_state_input,self.target_state_embedding,self.target_state_update,\
                         self.target_action,self.target_actor_net,self.target_actor_update,\
                         self.target_action_input, self.target_q_value,self.target_critic_net,self.target_critic_update \
-                        = self.create_target_network(state_space, self.state_embedding, self.actor_net, self.critic_net)
+                        = self.create_target_network(state_space, action_dim, self.state_embedding, self.actor_net, self.critic_net)
 
 		# define training rules
                 self.create_training_actor_method([self.state_embedding] + self.actor_net)
@@ -59,7 +60,6 @@ class ActorCriticNetwork:
                 
                 state_embedding = tf.Variable(tf.random_normal([state_space, state_dim], 0.0, 0.01), name='state_embedding')  
                 state_embed_input = tf.sparse_tensor_dense_matmul(state_input, state_embedding)
-                state_embed_input = tf.reduce_mean(state_embed_input, axis=1)
 
                 action, actor_net = self.create_eval_actor_network(state_embed_input, state_dim, action_dim)
                 q_value, critic_net = self.create_eval_critic_network(state_embed_input, action_input, state_dim, action_dim)
@@ -99,7 +99,7 @@ class ActorCriticNetwork:
 
 		return q_value_output,[W1,b1,W2,W2_action,b2,W3,b3]
 
-	def create_target_network(self, state_space, state_embedding, actor_net, critic_net):
+	def create_target_network(self, state_space, action_dim, state_embedding, actor_net, critic_net):
                 state_input = tf.sparse_placeholder(tf.float32, shape=[None, state_space])  # None * state_space
 		action_input = tf.placeholder("float",[None,action_dim])
                 ema = tf.train.ExponentialMovingAverage(decay=1-TAU)
@@ -107,9 +107,7 @@ class ActorCriticNetwork:
                 # state embedding
                 state_embedding_update = ema.apply([state_embedding])
                 target_state_embedding = ema.average(state_embedding)
-
                 state_embed_input = tf.sparse_tensor_dense_matmul(state_input, target_state_embedding)
-                state_embed_input = tf.reduce_mean(state_embed_input, axis=1)
 
                 # actor net
 		target_actor_update = ema.apply(actor_net)

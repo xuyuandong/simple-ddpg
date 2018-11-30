@@ -13,6 +13,6 @@ Reimplementing DDPG from Continuous Control with Deep Reinforcement Learning bas
 
 3 [https://github.com/SimonRamstedt/ddpg](https://github.com/SimonRamstedt/ddpg)
 
-4 [
+4 [https://github.com/floodsung/DDPG](https://github.com/floodsung/DDPG)
 
 
