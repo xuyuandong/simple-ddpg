@@ -5,7 +5,7 @@ class Env(object):
     def __init__(self):
         self.state_space = 1000000
         self.action_dim = 1
-        self.timestep_limit = 300
+        self.timestep_limit = 30
         pass
 
     def read_data(self, f):
@@ -38,4 +38,4 @@ class Env(object):
 if __name__ == '__main__':
     e = Env()
     for i in range(4):
-        print e.step()
+        print (e.step())

@@ -4,7 +4,7 @@
 import tensorflow as tf
 import numpy as np
 from ou_noise import OUNoise
-from actor_critic_network import ActorCriticNetwork
+from new_actor_critic_network import ActorCriticNetwork
 from replay_buffer import ReplayBuffer
 
 # Hyper Parameters:
@@ -49,33 +49,26 @@ class DDPG:
         # for action_dim = 1
         action_batch = np.resize(action_batch,[BATCH_SIZE,self.action_dim])
 
-        # Run policy by target actor network
-        # a' = pi(s')
-        next_action_batch = self.ac_network.target_actions(next_state_batch)
+        # Get Q target label
         # maxQ(s',a')
-        q_value_batch = self.ac_network.target_q(next_state_batch,next_action_batch)
+        q_value_batch = self.ac_network.target_q(next_state_batch)
 
         # Calculate target maxQ(s,a): y = reward + GAMMA * maxQ(s',a')
         y_batch = []  
-        for i in range(len(minibatch)): 
+        batch_size = len(minibatch)
+        for i in range(batch_size): 
             if done_batch[i]:
                 y_batch.append(reward_batch[i])
             else :
                 y_batch.append(reward_batch[i] + GAMMA * q_value_batch[i])
-        y_batch = np.resize(y_batch,[BATCH_SIZE,1])
+        y_batch = np.resize(y_batch,[batch_size,1])
         
         # Update eval critic network by minimizing the loss L
         cost = self.ac_network.train_critic(y_batch,state_batch,action_batch)
         print ('step_%d critic cost:'%self.ac_network.time_step, cost)
 
-        # a = pi(s)
-        action_batch_for_gradients = self.ac_network.actions(state_batch)
-        # ga from maxQ(s,a), -ga for maxmizing maxQ(s,a)
-        q_gradient_batch = self.ac_network.gradients(state_batch,action_batch_for_gradients)
-        
         # Update eval actor policy using the sampled gradient:
-        self.ac_network.train_actor(q_gradient_batch,state_batch)
-        #TODO: no sampling?
+        self.ac_network.train_actor(state_batch)
 
         # Update the target networks
         self.ac_network.update_target()
