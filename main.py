@@ -1,5 +1,6 @@
-from ddpg import *
+#from ddpg import *
 #from new_ddpg import *
+from pretrained_ddpg import *
 import rec_env
 import sys
 import gc
