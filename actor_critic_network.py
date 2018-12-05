@@ -9,7 +9,7 @@ LAYER2_SIZE = 64
 LEARNING_RATE = 1e-4
 TAU = 0.001
 L2 = 0.01
-BATCH_SIZE = 64
+SAVE_STEPS = 10
 
 class ActorCriticNetwork:
         """docstring for ActorNetwork"""
@@ -38,6 +38,7 @@ class ActorCriticNetwork:
                 self.sess.run(tf.initialize_all_variables())
 
                 self.update_target()
+                self.saver = tf.train.Saver()
 
         def create_training_critic_method(self, net):
                 ''' for eval network '''
@@ -68,12 +69,12 @@ class ActorCriticNetwork:
         def create_eval_actor_network(self, state_embed_input, state_dim, action_dim):
                 layer1_size = LAYER1_SIZE
                 layer2_size = LAYER2_SIZE
-                W1 = self.variable([state_dim,layer1_size],state_dim)
-                b1 = self.variable([layer1_size],state_dim)
-                W2 = self.variable([layer1_size,layer2_size],layer1_size)
-                b2 = self.variable([layer2_size],layer1_size)
-                W3 = tf.Variable(tf.random_uniform([layer2_size,action_dim],-3e-3,3e-3))
-                b3 = tf.Variable(tf.random_uniform([action_dim],-3e-3,3e-3))
+                W1 = self.variable('actor/W1',[state_dim,layer1_size],state_dim)
+                b1 = self.variable('actor/b1',[layer1_size],state_dim)
+                W2 = self.variable('actor/W2',[layer1_size,layer2_size],layer1_size)
+                b2 = self.variable('actor/b2',[layer2_size],layer1_size)
+                W3 = tf.Variable(tf.random_uniform([layer2_size,action_dim],-3e-3,3e-3), name='actor/W3')
+                b3 = tf.Variable(tf.random_uniform([action_dim],-3e-3,3e-3), name='actor/b3')
 
                 layer1 = tf.nn.relu(tf.matmul(state_embed_input,W1) + b1)
                 layer2 = tf.nn.relu(tf.matmul(layer1,W2) + b2)
@@ -84,13 +85,13 @@ class ActorCriticNetwork:
         def create_eval_critic_network(self,state_embed_input, action_input, state_dim,action_dim):
                 layer1_size = LAYER1_SIZE
                 layer2_size = LAYER2_SIZE
-                W1 = self.variable([state_dim,layer1_size],state_dim)
-                b1 = self.variable([layer1_size],state_dim)
-                W2 = self.variable([layer1_size,layer2_size],layer1_size+action_dim)
-                W2_action = self.variable([action_dim,layer2_size],layer1_size+action_dim)
-                b2 = self.variable([layer2_size],layer1_size+action_dim)
-                W3 = tf.Variable(tf.random_uniform([layer2_size,1],-3e-3,3e-3))
-                b3 = tf.Variable(tf.random_uniform([1],-3e-3,3e-3))
+                W1 = self.variable('critic/W1',[state_dim,layer1_size],state_dim)
+                b1 = self.variable('critic/b1',[layer1_size],state_dim)
+                W2 = self.variable('critic/W2',[layer1_size,layer2_size],layer1_size+action_dim)
+                W2_action = self.variable('critic/W2a',[action_dim,layer2_size],layer1_size+action_dim)
+                b2 = self.variable('critic/b2',[layer2_size],layer1_size+action_dim)
+                W3 = tf.Variable(tf.random_uniform([layer2_size,1],-3e-3,3e-3), name='critic/W3')
+                b3 = tf.Variable(tf.random_uniform([1],-3e-3,3e-3), name='critic/b3')
 
                 layer1 = tf.nn.relu(tf.matmul(state_embed_input,W1) + b1)
                 layer2 = tf.nn.relu(tf.matmul(layer1,W2) + tf.matmul(action_input,W2_action) + b2)
@@ -177,33 +178,27 @@ class ActorCriticNetwork:
                         self.state_input:state_batch
                         })
 
-        def action(self,state):
-                return self.sess.run(self.action,feed_dict={
-                        self.state_input:[state]
-                        })[0]
-
-
         def target_actions(self,state_batch):
                 return self.sess.run(self.target_action,feed_dict={
                         self.target_state_input:state_batch
                         })
 
         # f fan-in size
-        def variable(self,shape,f):
-                return tf.Variable(tf.random_uniform(shape,-1/math.sqrt(f),1/math.sqrt(f)))
-'''
+        def variable(self,name,shape,f):
+                return tf.Variable(tf.random_uniform(shape,-1/math.sqrt(f),1/math.sqrt(f)), name=name)
+        
         def load_network(self):
-                self.saver = tf.train.Saver()
-                checkpoint = tf.train.get_checkpoint_state("saved_actor_networks")
+                checkpoint = tf.train.get_checkpoint_state("saved_networks/ac_network")
                 if checkpoint and checkpoint.model_checkpoint_path:
                         self.saver.restore(self.sess, checkpoint.model_checkpoint_path)
                         print "Successfully loaded:", checkpoint.model_checkpoint_path
                 else:
                         print "Could not find old network weights"
-        def save_network(self,time_step):
-                print 'save actor-network...',time_step
-                self.saver.save(self.sess, 'saved_actor_networks/' + 'actor-network', global_step = time_step)
-
-'''
-
-                
+        
+        def save_network(self):
+                if self.time_step % SAVE_STEPS == 1:
+                        print ('save actor-network...',self.time_step)
+                        self.saver.save(self.sess, 'saved_networks/' + 'ac_network', global_step = self.time_step)
+                        for var in self.actor_net:
+                                print (var)
+                                print (self.sess.run(var))

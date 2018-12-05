@@ -10,7 +10,7 @@ from replay_buffer import ReplayBuffer
 # Hyper Parameters:
 
 REPLAY_BUFFER_SIZE = 1000000
-REPLAY_START_SIZE = 10000
+REPLAY_START_SIZE = 200
 BATCH_SIZE = 64
 GAMMA = 0.9
 
@@ -52,6 +52,7 @@ class DDPG:
         next_action_batch = self.ac_network.target_actions(next_state_batch)
         # maxQ(s',a')
         q_value_batch = self.ac_network.target_q(next_state_batch,next_action_batch)
+        print ('step_%d next_action:'%self.ac_network.time_step, next_action_batch[0][0])
 
         # Calculate target maxQ(s,a): y = reward + GAMMA * maxQ(s',a')
         y_batch = []  
@@ -77,15 +78,18 @@ class DDPG:
 
         # Update the target networks
         self.ac_network.update_target()
+        
+        # Save network
+        self.ac_network.save_network()
 
     def noise_action(self,state):
         # Select action a_t according to the current policy and exploration noise
-        action = self.ac_network.action(state)
-        return action+self.exploration_noise.noise()
+        action = self.ac_network.actions([state])
+        return action[0] + self.exploration_noise.noise()
 
     def action(self,state):
-        action = self.ac_network.action(state)
-        return action
+        action = self.ac_network.actions([state])
+        return action[0]
 
     def perceive(self,state,action,reward,next_state,done):
         # Store transition (s_t,a_t,r_t,s_{t+1}) in replay buffer
@@ -94,10 +98,6 @@ class DDPG:
         # Store transitions to replay start size then start training
         if self.replay_buffer.count() >  REPLAY_START_SIZE:
             self.train()
-
-        #if self.time_step % 10000 == 0:
-            #self.actor_network.save_network(self.time_step)
-            #self.critic_network.save_network(self.time_step)
 
         # Re-iniitialize the random process when an episode ends
         if done:

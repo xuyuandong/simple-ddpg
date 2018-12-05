@@ -79,7 +79,7 @@ class DDPG:
         return action+self.exploration_noise.noise()
 
     def action(self,state):
-        action = self.ac_network.action(state)
+        action = self.ac_network.action([state])
         return action
 
     def perceive(self,state,action,reward,next_state,done):

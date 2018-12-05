@@ -1,7 +1,5 @@
 # --------------------------------------
 # Ornstein-Uhlenbeck Noise
-# Author: Flood Sung
-# Date: 2016.5.4
 # Reference: https://github.com/rllab/rllab/blob/master/rllab/exploration_strategies/ou_strategy.py
 # --------------------------------------
 
